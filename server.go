@@ -3,8 +3,9 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"log"
-	"net/http"
+	"net"
 )
 
 // These test keys were generated with the following program, available in the
@@ -31,7 +32,7 @@ w2Y2IdT6iKmPz9jeTz5g9Onx0Ng+8WUVMP2uc1uyjMEVV677q/k1Z+Ph
 -----END EC PRIVATE KEY-----
 `
 
-func main() {
+func initServer() *tls.Config {
 	// The delegation P256 certificate.
 	dcCertP256 := new(tls.Certificate)
 	var err error
@@ -62,16 +63,95 @@ func main() {
 	cfg.Certificates = make([]tls.Certificate, 1)
 	cfg.Certificates[0] = *dcCertP256
 
-	srv := &http.Server{
-		Addr:      ":8443",
-		Handler:   &handler{},
-		TLSConfig: cfg,
-	}
-	log.Fatal(srv.ListenAndServeTLS("server.crt", "server.key"))
+	return cfg
 }
 
-type handler struct{}
+func initClient() *tls.Config {
+	ccfg := &tls.Config{
+		MinVersion:         tls.VersionTLS10,
+		MaxVersion:         tls.VersionTLS13,
+		InsecureSkipVerify: true, // I'm JUST setting this for this test because the root and the leas are the same
+	}
 
-func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	w.Write([]byte("PONG\n"))
+	return ccfg
+}
+
+func newLocalListener() net.Listener {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		ln, err = net.Listen("tcp6", "[::1]:0")
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+	return ln
+}
+
+func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls.Config, peer string) (bool, error) {
+	ln := newLocalListener()
+	defer ln.Close()
+
+	serverCh := make(chan *tls.Conn, 1)
+	var serverErr error
+	go func() {
+		serverConn, err := ln.Accept()
+		if err != nil {
+			serverErr = err
+			serverCh <- nil
+			return
+		}
+		server := tls.Server(serverConn, serverConfig)
+		if err := server.Handshake(); err != nil {
+			serverErr = fmt.Errorf("handshake error: %v", err)
+			serverCh <- nil
+			return
+		}
+		serverCh <- server
+	}()
+
+	client, err := tls.Dial("tcp", ln.Addr().String(), clientConfig)
+	if err != nil {
+		return false, err
+	}
+	defer client.Close()
+
+	server := <-serverCh
+	if server == nil {
+		return false, serverErr
+	}
+
+	bufLen := len(clientMsg)
+	if len(serverMsg) > len(clientMsg) {
+		bufLen = len(serverMsg)
+	}
+	buf := make([]byte, bufLen)
+
+	client.Write([]byte(clientMsg))
+	n, err := server.Read(buf)
+	if err != nil || n != len(clientMsg) || string(buf[:n]) != clientMsg {
+		return false, fmt.Errorf("Server read = %d, buf= %q; want %d, %s", n, buf, len(clientMsg), clientMsg)
+	}
+
+	server.Write([]byte(serverMsg))
+	n, err = client.Read(buf)
+	if n != len(serverMsg) || err != nil || string(buf[:n]) != serverMsg {
+		return false, fmt.Errorf("Client read = %d, %v, data %q; want %d, nil, %s", n, err, buf, len(serverMsg), serverMsg)
+	}
+
+	return false, nil
+}
+
+func main() {
+	serverMsg := "hello, client"
+	clientMsg := "hello, server"
+
+	serverConfig := initServer()
+	clientConfig := initClient()
+
+	_, err := testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "server")
+	if err != nil {
+		log.Println(err)
+	} else {
+		log.Println("success")
+	}
 }
