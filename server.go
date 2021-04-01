@@ -158,7 +158,7 @@ func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls
 		return false, fmt.Errorf("Client read = %d, %v, data %q; want %d, nil, %s", n, err, buf, len(serverMsg), serverMsg)
 	}
 
-	if peer == "server" {
+	if peer == "client" {
 		if client.ConnectionState().VerifiedDC == true {
 			return true, nil
 		}
@@ -174,7 +174,7 @@ func main() {
 	serverConfig := initServer()
 	clientConfig := initClient()
 
-	dc, err := testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "server")
+	dc, err := testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "client")
 	if err != nil {
 		log.Println(err)
 	} else if !dc {
