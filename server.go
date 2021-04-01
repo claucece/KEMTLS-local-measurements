@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 )
 
 // These test keys were generated with the following program, available in the
@@ -32,6 +33,13 @@ w2Y2IdT6iKmPz9jeTz5g9Onx0Ng+8WUVMP2uc1uyjMEVV677q/k1Z+Ph
 -----END EC PRIVATE KEY-----
 `
 
+const (
+	// In the absence of an application profile standard specifying otherwise,
+	// the maximum validity period is set to 7 days.
+	testDcMaxTTLSeconds = 60 * 60 * 24 * 7
+	testDcMaxTTL        = time.Duration(testDcMaxTTLSeconds * time.Second)
+)
+
 func initServer() *tls.Config {
 	// The delegation P256 certificate.
 	dcCertP256 := new(tls.Certificate)
@@ -47,8 +55,9 @@ func initServer() *tls.Config {
 	}
 
 	cfg := &tls.Config{
-		MinVersion: tls.VersionTLS10,
-		MaxVersion: tls.VersionTLS13,
+		MinVersion:         tls.VersionTLS10,
+		MaxVersion:         tls.VersionTLS13,
+		InsecureSkipVerify: true, // I'm JUST setting this for this test because the root and the leas are the same
 	}
 
 	// The root certificates for the peer: this are invalid so DO NOT REUSE.
@@ -63,14 +72,25 @@ func initServer() *tls.Config {
 	cfg.Certificates = make([]tls.Certificate, 1)
 	cfg.Certificates[0] = *dcCertP256
 
+	dcNow := time.Date(2021, time.March, 31, 11, 0, 0, 234234, time.UTC)
+	dc, priv, err := tls.NewDelegatedCredential(dcCertP256, tls.ECDSAWithP256AndSHA256, dcNow.Sub(dcCertP256.Leaf.NotBefore)+testDcMaxTTL, false)
+	if err != nil {
+		panic(err)
+	}
+
+	dcPair := tls.DelegatedCredentialPair{dc, priv}
+	cfg.Certificates[0].DelegatedCredentials = make([]tls.DelegatedCredentialPair, 1)
+	cfg.Certificates[0].DelegatedCredentials[0] = dcPair
+
 	return cfg
 }
 
 func initClient() *tls.Config {
 	ccfg := &tls.Config{
-		MinVersion:         tls.VersionTLS10,
-		MaxVersion:         tls.VersionTLS13,
-		InsecureSkipVerify: true, // I'm JUST setting this for this test because the root and the leas are the same
+		MinVersion:                 tls.VersionTLS10,
+		MaxVersion:                 tls.VersionTLS13,
+		InsecureSkipVerify:         true, // I'm JUST setting this for this test because the root and the leas are the same
+		SupportDelegatedCredential: true,
 	}
 
 	return ccfg
@@ -138,6 +158,12 @@ func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls
 		return false, fmt.Errorf("Client read = %d, %v, data %q; want %d, nil, %s", n, err, buf, len(serverMsg), serverMsg)
 	}
 
+	if peer == "server" {
+		if client.ConnectionState().VerifiedDC == true {
+			return true, nil
+		}
+	}
+
 	return false, nil
 }
 
@@ -148,9 +174,11 @@ func main() {
 	serverConfig := initServer()
 	clientConfig := initClient()
 
-	_, err := testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "server")
+	dc, err := testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "server")
 	if err != nil {
 		log.Println(err)
+	} else if !dc {
+		log.Println("no dc")
 	} else {
 		log.Println("success")
 	}
