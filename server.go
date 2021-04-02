@@ -15,21 +15,22 @@ import (
 //	go run generate_cert.go -ecdsa-curve P256 -host 127.0.0.1 -allowDC
 //
 var delegatorCertPEMP256 = `-----BEGIN CERTIFICATE-----
-MIIBejCCAR+gAwIBAgIQKEg6iMq02QUu7QZSZJ/qjzAKBggqhkjOPQQDAjASMRAw
-DgYDVQQKEwdBY21lIENvMB4XDTIxMDIyNzAwMTYwMVoXDTIyMDIyNzAwMTYwMVow
-EjEQMA4GA1UEChMHQWNtZSBDbzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJTe
-bU0Yny6aMvae3zlNj135l7XSzqPDZjYh1PqIqY/P2N5PPmD06fHQ2D7xZRUw/a5z
-W7KMwRVXrvur+TVn4+GjVzBVMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAKBggr
-BgEFBQcDATAMBgNVHRMBAf8EAjAAMA8GCSsGAQQBgtpLLAQCBQAwDwYDVR0RBAgw
-BocEfwAAATAKBggqhkjOPQQDAgNJADBGAiEAvkorBgZm6GidD0Z7tcAJWRq+2YOQ
-GVclN1Z1CDljQIoCIQDUlTAqDyRpNJ9ntCHEdOQYe1LfAkJHasok5yCRHC1o8w==
+MIIBgDCCASWgAwIBAgIRAKHVtdPqHtn9cjVHW94hM/gwCgYIKoZIzj0EAwIwEjEQ
+MA4GA1UEChMHQWNtZSBDbzAeFw0yMTAzMTYyMTEzNThaFw0yMjAzMTYyMTEzNTha
+MBIxEDAOBgNVBAoTB0FjbWUgQ28wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATo
+iWgTin1LZO5Ncqz7lV+G6rmpFEJznHcLgFuQUdLKEO2sBh5gUd9s+4S9SpOUziZp
+p1CK+A1yziNpRAXh0LZho1wwWjAOBgNVHQ8BAf8EBAMCB4AwEwYDVR0lBAwwCgYI
+KwYBBQUHAwEwDAYDVR0TAQH/BAIwADAPBgkrBgEEAYLaSywEAgUAMBQGA1UdEQQN
+MAuCCWxvY2FsaG9zdDAKBggqhkjOPQQDAgNJADBGAiEA3g74ed4oORh4NRXCESrd
+EjqWLR3aSV/hn6ozgpLSbOsCIQD7/DFIiPu+mmFrDMRiM6dBQDteo8ou2goEhQWa
+9Lq5SQ==
 -----END CERTIFICATE-----
 `
 
 var delegatorKeyPEMP256 = `-----BEGIN EC PRIVATE KEY-----
-MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg4OgO7q8sUUZaYjEp
-JuLzlXH0qmTZ1k3UHgPYbAmRFOWhRANCAASU3m1NGJ8umjL2nt85TY9d+Ze10s6j
-w2Y2IdT6iKmPz9jeTz5g9Onx0Ng+8WUVMP2uc1uyjMEVV677q/k1Z+Ph
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQga+i6tUZxZC1WRj/c
+wGYkTQyxBueWzjK7XsOm9kdZuwChRANCAAToiWgTin1LZO5Ncqz7lV+G6rmpFEJz
+nHcLgFuQUdLKEO2sBh5gUd9s+4S9SpOUziZpp1CK+A1yziNpRAXh0LZh
 -----END EC PRIVATE KEY-----
 `
 
@@ -72,8 +73,9 @@ func initServer() *tls.Config {
 	cfg.Certificates = make([]tls.Certificate, 1)
 	cfg.Certificates[0] = *dcCertP256
 
-	dcNow := time.Date(2021, time.March, 31, 11, 0, 0, 234234, time.UTC)
-	dc, priv, err := tls.NewDelegatedCredential(dcCertP256, tls.ECDSAWithP256AndSHA256, dcNow.Sub(dcCertP256.Leaf.NotBefore)+testDcMaxTTL, false)
+	maxTTL, _ := time.ParseDuration("24h")
+	validTime := maxTTL + time.Now().Sub(dcCertP256.Leaf.NotBefore)
+	dc, priv, err := tls.NewDelegatedCredential(dcCertP256, tls.Ed25519, validTime, false)
 	if err != nil {
 		panic(err)
 	}
