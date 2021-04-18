@@ -58,9 +58,9 @@ func initServer() *tls.Config {
 	cfg := &tls.Config{
 		MinVersion:                 tls.VersionTLS10,
 		MaxVersion:                 tls.VersionTLS13,
-		InsecureSkipVerify:         true,                     // I'm JUST setting this for this test because the root and the leaf are the same
-		SupportDelegatedCredential: true,                     // for client auth, the server supports delegated credentials
-		ClientAuth:                 tls.RequestClientKEMCert, // for client auth
+		InsecureSkipVerify:         true,                  // I'm JUST setting this for this test because the root and the leaf are the same
+		SupportDelegatedCredential: true,                  // for client auth, the server supports delegated credentials
+		ClientAuth:                 tls.RequestClientCert, // for client auth
 
 		CurvePreferences: []tls.CurveID{tls.SIKEp434, tls.Kyber512},
 		KEMTLSEnabled:    true,
