@@ -1,0 +1,4 @@
+[submodule "go"]
+	path = go
+	url = https://github.com/cloudflare/go
+	branch = cf-pq-kemtls
