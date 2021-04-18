@@ -93,7 +93,7 @@ func initClient() *tls.Config {
 	ccfg := &tls.Config{
 		MinVersion:                 tls.VersionTLS10,
 		MaxVersion:                 tls.VersionTLS13,
-		InsecureSkipVerify:         true, // I'm JUST setting this for this test because the root and the leas are the same
+		InsecureSkipVerify:         true, // I'm JUST setting this for this test because the root and the leaf are the same
 		SupportDelegatedCredential: true,
 
 		CurvePreferences: []tls.CurveID{tls.SIKEp434, tls.Kyber512},
