@@ -95,8 +95,8 @@ func initClient() *tls.Config {
 	cfg := &tls.Config{
 		MinVersion:                 tls.VersionTLS10,
 		MaxVersion:                 tls.VersionTLS13,
-		InsecureSkipVerify:         true,  // I'm JUST setting this for this test because the root and the leas are the same
-		SupportDelegatedCredential: false, // set this to true for mutual auth with DCs
+		InsecureSkipVerify:         true, // I'm JUST setting this for this test because the root and the leaf are the same
+		SupportDelegatedCredential: false,
 	}
 
 	// The root certificates for the peer: this are invalid so DO NOT REUSE.
@@ -221,29 +221,30 @@ func main() {
 	clientConfig := initClient()
 
 	ts, dc, err := testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "server")
-	fmt.Printf("\n write Client Hello %v \n", ts.clientTimingInfo.WriteClientHello)
-	fmt.Printf("\n receive Client Hello %v \n", ts.serverTimingInfo.ProcessClientHello)
-	fmt.Printf("\n write Server Hello %v \n", ts.serverTimingInfo.WriteServerHello)
-	fmt.Printf("\n write Server Encrypted Extensions %v \n", ts.serverTimingInfo.WriteEncryptedExtensions)
-	fmt.Printf("\n write Server Certificate%v \n", ts.serverTimingInfo.WriteCertificate)
-	fmt.Printf("\n write Server CertificateVerify%v \n", ts.serverTimingInfo.WriteCertificateVerify)
-	fmt.Printf("\n write Server Finished%v \n", ts.serverTimingInfo.WriteServerFinished)
-	fmt.Printf("\n receive Server Encrypted Extensions %v \n", ts.clientTimingInfo.ReadEncryptedExtensions)
-	fmt.Printf("\n receive Server Certificate %v \n", ts.clientTimingInfo.ReadCertificate)
-	fmt.Printf("\n receive Server Certificate Verify %v \n", ts.clientTimingInfo.ReadCertificateVerify)
-	fmt.Printf("\n receive Server Finished %v \n", ts.clientTimingInfo.ReadServerFinished)
-	fmt.Printf("\n write Client Certificate %v \n", ts.clientTimingInfo.WriteCertificate)
-	fmt.Printf("\n write Client CertificateVerify %v \n", ts.clientTimingInfo.WriteCertificateVerify)
-	fmt.Printf("\n write Client Finished %v \n", ts.clientTimingInfo.WriteClientFinished)
-	fmt.Printf("\n receive Client Certificate %v \n", ts.serverTimingInfo.ReadCertificate)
-	fmt.Printf("\n receive Client Certificate Verify %v \n", ts.serverTimingInfo.ReadCertificateVerify)
-	fmt.Printf("\n receive Client Finished %v \n", ts.serverTimingInfo.ReadClientFinished)
+
+	log.Printf("Write Client Hello %v \n", ts.clientTimingInfo.WriteClientHello)
+	log.Printf("Receive Client Hello %v \n", ts.serverTimingInfo.ProcessClientHello)
+	log.Printf("Write Server Hello %v \n", ts.serverTimingInfo.WriteServerHello)
+	log.Printf("Write Server Encrypted Extensions %v \n", ts.serverTimingInfo.WriteEncryptedExtensions)
+	log.Printf("Write Server Certificate%v \n", ts.serverTimingInfo.WriteCertificate)
+	log.Printf("Write Server CertificateVerify%v \n", ts.serverTimingInfo.WriteCertificateVerify)
+	log.Printf("Write Server Finished%v \n", ts.serverTimingInfo.WriteServerFinished)
+	log.Printf("Receive Server Encrypted Extensions %v \n", ts.clientTimingInfo.ReadEncryptedExtensions)
+	log.Printf("Receive Server Certificate %v \n", ts.clientTimingInfo.ReadCertificate)
+	log.Printf("Receive Server Certificate Verify %v \n", ts.clientTimingInfo.ReadCertificateVerify)
+	log.Printf("Receive Server Finished %v \n", ts.clientTimingInfo.ReadServerFinished)
+	log.Printf("Write Client Certificate %v \n", ts.clientTimingInfo.WriteCertificate)
+	log.Printf("Write Client CertificateVerify %v \n", ts.clientTimingInfo.WriteCertificateVerify)
+	log.Printf("Write Client Finished %v \n", ts.clientTimingInfo.WriteClientFinished)
+	log.Printf("Receive Client Certificate %v \n", ts.serverTimingInfo.ReadCertificate)
+	log.Printf("Receive Client Certificate Verify %v \n", ts.serverTimingInfo.ReadCertificateVerify)
+	log.Printf("Receive Client Finished %v \n", ts.serverTimingInfo.ReadClientFinished)
 
 	if err != nil {
 		log.Println(err)
 	} else if !dc {
-		log.Println("no dc")
+		log.Println("no dc was used")
 	} else {
-		log.Println("success")
+		log.Println("Handshake Success")
 	}
 }
