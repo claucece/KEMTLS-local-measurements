@@ -58,7 +58,7 @@ func initServer() *tls.Config {
 	cfg := &tls.Config{
 		MinVersion:                 tls.VersionTLS10,
 		MaxVersion:                 tls.VersionTLS13,
-		InsecureSkipVerify:         true,                     // I'm JUST setting this for this test because the root and the leas are the same
+		InsecureSkipVerify:         true,                     // I'm JUST setting this for this test because the root and the leaf are the same
 		SupportDelegatedCredential: true,                     // for client auth, the server supports delegated credentials
 		ClientAuth:                 tls.RequestClientKEMCert, // for client auth
 
@@ -80,7 +80,7 @@ func initServer() *tls.Config {
 
 	maxTTL, _ := time.ParseDuration("24h")
 	validTime := maxTTL + time.Now().Sub(dcCertP256.Leaf.NotBefore)
-	dc, priv, err := tls.NewDelegatedCredential(dcCertP256, tls.KEMTLSWithSIKEp434, validTime, true)
+	dc, priv, err := tls.NewDelegatedCredential(dcCertP256, tls.KEMTLSWithSIKEp434, validTime, false)
 	if err != nil {
 		panic(err)
 	}
@@ -106,27 +106,27 @@ func initClient() *tls.Config {
 		panic(err)
 	}
 
-	cfg := &tls.Config{
+	ccfg := &tls.Config{
 		MinVersion:                 tls.VersionTLS10,
 		MaxVersion:                 tls.VersionTLS13,
-		InsecureSkipVerify:         true, // I'm JUST setting this for this test because the root and the leas are the same
-		SupportDelegatedCredential: true, // set this to true for mutual auth with DCs
+		InsecureSkipVerify:         true, // I'm JUST setting this for this test because the root and the leaf are the same
+		SupportDelegatedCredential: true,
 
 		CurvePreferences: []tls.CurveID{tls.SIKEp434, tls.Kyber512},
 		KEMTLSEnabled:    true,
 	}
 
 	// The root certificates for the peer: this are invalid so DO NOT REUSE.
-	cfg.RootCAs = x509.NewCertPool()
+	ccfg.RootCAs = x509.NewCertPool()
 
 	dcRoot, err := x509.ParseCertificate(dcCertP256.Certificate[0])
 	if err != nil {
 		panic(err)
 	}
-	cfg.RootCAs.AddCert(dcRoot)
+	ccfg.RootCAs.AddCert(dcRoot)
 
-	cfg.Certificates = make([]tls.Certificate, 1)
-	cfg.Certificates[0] = *dcCertP256
+	ccfg.Certificates = make([]tls.Certificate, 1)
+	ccfg.Certificates[0] = *dcCertP256
 
 	maxTTL, _ := time.ParseDuration("24h")
 	validTime := maxTTL + time.Now().Sub(dcCertP256.Leaf.NotBefore)
@@ -136,10 +136,10 @@ func initClient() *tls.Config {
 	}
 
 	dcPair := tls.DelegatedCredentialPair{dc, priv}
-	cfg.Certificates[0].DelegatedCredentials = make([]tls.DelegatedCredentialPair, 1)
-	cfg.Certificates[0].DelegatedCredentials[0] = dcPair
+	ccfg.Certificates[0].DelegatedCredentials = make([]tls.DelegatedCredentialPair, 1)
+	ccfg.Certificates[0].DelegatedCredentials[0] = dcPair
 
-	return cfg
+	return ccfg
 }
 
 func newLocalListener() net.Listener {
@@ -167,7 +167,7 @@ func (ti *timingInfo) eventHandler(event tls.CFEvent) {
 	}
 }
 
-func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls.Config, peer string) (timingState timingInfo, isDC bool, err error) {
+func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls.Config, peer string) (timingState timingInfo, dcUsed bool, kemtlsUsed bool, err error) {
 	clientConfig.CFEventHandler = timingState.eventHandler
 	serverConfig.CFEventHandler = timingState.eventHandler
 
@@ -194,13 +194,13 @@ func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls
 
 	client, err := tls.Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
-		return timingState, false, err
+		return timingState, false, false, err
 	}
 	defer client.Close()
 
 	server := <-serverCh
 	if server == nil {
-		return timingState, false, serverErr
+		return timingState, false, false, err
 	}
 
 	bufLen := len(clientMsg)
@@ -212,22 +212,22 @@ func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls
 	client.Write([]byte(clientMsg))
 	n, err := server.Read(buf)
 	if err != nil || n != len(clientMsg) || string(buf[:n]) != clientMsg {
-		return timingState, false, fmt.Errorf("Server read = %d, buf= %q; want %d, %s", n, buf, len(clientMsg), clientMsg)
+		return timingState, false, false, fmt.Errorf("Server read = %d, buf= %q; want %d, %s", n, buf, len(clientMsg), clientMsg)
 	}
 
 	server.Write([]byte(serverMsg))
 	n, err = client.Read(buf)
 	if n != len(serverMsg) || err != nil || string(buf[:n]) != serverMsg {
-		return timingState, false, fmt.Errorf("Client read = %d, %v, data %q; want %d, nil, %s", n, err, buf, len(serverMsg), serverMsg)
+		return timingState, false, false, fmt.Errorf("Client read = %d, %v, data %q; want %d, nil, %s", n, err, buf, len(serverMsg), serverMsg)
 	}
 
 	if peer == "server" {
-		if server.ConnectionState().VerifiedDC == true {
-			return timingState, true, nil
+		if server.ConnectionState().VerifiedDC == true && (server.ConnectionState().DidKEMTLS && client.ConnectionState().DidKEMTLS) {
+			return timingState, true, true, nil
 		}
 	}
 
-	return timingState, false, nil
+	return timingState, false, false, nil
 }
 
 func main() {
@@ -237,30 +237,33 @@ func main() {
 	serverConfig := initServer()
 	clientConfig := initClient()
 
-	ts, dc, err := testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "server")
+	ts, dc, kemtls, err := testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "server")
+
+	if err != nil {
+		log.Println(err)
+	} else if !dc && !kemtls {
+		log.Println("no dc")
+	} else {
+		log.Println("success in kemtls with dc")
+	}
+
 	fmt.Printf("\n write Client Hello %v \n", ts.clientTimingInfo.WriteClientHello)
 	fmt.Printf("\n receive Client Hello %v \n", ts.serverTimingInfo.ProcessClientHello)
 	fmt.Printf("\n write Server Hello %v \n", ts.serverTimingInfo.WriteServerHello)
 	fmt.Printf("\n write Server Encrypted Extensions %v \n", ts.serverTimingInfo.WriteEncryptedExtensions)
 	fmt.Printf("\n write Server Certificate%v \n", ts.serverTimingInfo.WriteCertificate)
-	fmt.Printf("\n write Server CertificateVerify%v \n", ts.serverTimingInfo.WriteCertificateVerify)
-	fmt.Printf("\n write Server Finished%v \n", ts.serverTimingInfo.WriteServerFinished)
-	fmt.Printf("\n receive Server Encrypted Extensions %v \n", ts.clientTimingInfo.ReadEncryptedExtensions)
-	fmt.Printf("\n receive Server Certificate %v \n", ts.clientTimingInfo.ReadCertificate)
-	fmt.Printf("\n receive Server Certificate Verify %v \n", ts.clientTimingInfo.ReadCertificateVerify)
-	fmt.Printf("\n receive Server Finished %v \n", ts.clientTimingInfo.ReadServerFinished)
+	fmt.Printf("\n write Server CertificateVerify %v \n", ts.serverTimingInfo.WriteCertificateVerify)
+	fmt.Printf("\n write Server CertificateVerify %v \n", ts.serverTimingInfo.WriteCertificateVerify)
+	fmt.Printf("\n write Client KEMCiphertext %v \n", ts.clientTimingInfo.WriteKEMCiphertext)
+	fmt.Printf("\n read Client KEMCiphertext %v \n", ts.serverTimingInfo.ReadKEMCiphertext)
 	fmt.Printf("\n write Client Certificate %v \n", ts.clientTimingInfo.WriteCertificate)
 	fmt.Printf("\n write Client CertificateVerify %v \n", ts.clientTimingInfo.WriteCertificateVerify)
-	fmt.Printf("\n write Client Finished %v \n", ts.clientTimingInfo.WriteClientFinished)
 	fmt.Printf("\n receive Client Certificate %v \n", ts.serverTimingInfo.ReadCertificate)
 	fmt.Printf("\n receive Client Certificate Verify %v \n", ts.serverTimingInfo.ReadCertificateVerify)
+	fmt.Printf("\n write Server KEMCiphertext %v \n", ts.serverTimingInfo.WriteKEMCiphertext)
+	fmt.Printf("\n read Server KEMCiphertext %v \n", ts.clientTimingInfo.ReadKEMCiphertext)
+	fmt.Printf("\n write Client Finished %v \n", ts.clientTimingInfo.WriteClientFinished)
 	fmt.Printf("\n receive Client Finished %v \n", ts.serverTimingInfo.ReadClientFinished)
-
-	if err != nil {
-		log.Println(err)
-	} else if !dc {
-		log.Println("no dc")
-	} else {
-		log.Println("success")
-	}
+	fmt.Printf("\n write Server Finished %v \n", ts.serverTimingInfo.WriteServerFinished)
+	fmt.Printf("\n receive Server Finished %v \n", ts.clientTimingInfo.ReadServerFinished)
 }
