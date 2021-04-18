@@ -114,7 +114,7 @@ func newLocalListener() net.Listener {
 	return ln
 }
 
-func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls.Config, peer string) (bool, error) {
+func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls.Config, peer string) (bool, bool, error) {
 	ln := newLocalListener()
 	defer ln.Close()
 
@@ -138,13 +138,13 @@ func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls
 
 	client, err := tls.Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 	defer client.Close()
 
 	server := <-serverCh
 	if server == nil {
-		return false, serverErr
+		return false, false, serverErr
 	}
 
 	bufLen := len(clientMsg)
@@ -156,22 +156,22 @@ func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls
 	client.Write([]byte(clientMsg))
 	n, err := server.Read(buf)
 	if err != nil || n != len(clientMsg) || string(buf[:n]) != clientMsg {
-		return false, fmt.Errorf("Server read = %d, buf= %q; want %d, %s", n, buf, len(clientMsg), clientMsg)
+		return false, false, fmt.Errorf("Server read = %d, buf= %q; want %d, %s", n, buf, len(clientMsg), clientMsg)
 	}
 
 	server.Write([]byte(serverMsg))
 	n, err = client.Read(buf)
 	if n != len(serverMsg) || err != nil || string(buf[:n]) != serverMsg {
-		return false, fmt.Errorf("Client read = %d, %v, data %q; want %d, nil, %s", n, err, buf, len(serverMsg), serverMsg)
+		return false, false, fmt.Errorf("Client read = %d, %v, data %q; want %d, nil, %s", n, err, buf, len(serverMsg), serverMsg)
 	}
 
 	if peer == "client" {
-		if client.ConnectionState().VerifiedDC == true {
-			return true, nil
+		if client.ConnectionState().VerifiedDC == true && (server.ConnectionState().DidKEMTLS && client.ConnectionState().DidKEMTLS) {
+			return true, true, nil
 		}
 	}
 
-	return false, nil
+	return false, false, nil
 }
 
 func main() {
@@ -181,12 +181,12 @@ func main() {
 	serverConfig := initServer()
 	clientConfig := initClient()
 
-	dc, err := testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "client")
+	dc, kemtls, err := testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "client")
 	if err != nil {
 		log.Println(err)
-	} else if !dc {
+	} else if !dc && !kemtls {
 		log.Println("no dc")
 	} else {
-		log.Println("success")
+		log.Println("success in kemtls with dc")
 	}
 }
