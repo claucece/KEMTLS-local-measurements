@@ -252,7 +252,7 @@ func main() {
 
 	if err != nil {
 		log.Println(err)
-	} else if !dc && !kemtls {
+	} else if !dc && kemtls {
 		log.Println("Failure while trying to use pqtls with dcs")
 	} else {
 		log.Println("Success using pqtls with dc")
