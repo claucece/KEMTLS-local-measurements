@@ -248,7 +248,7 @@ func main() {
 	if err != nil {
 		log.Println(err)
 	} else if !dc {
-		log.Println("no dc was used")
+		log.Println("Failure while trying to use tls 1.3 with dcs")
 	} else {
 		log.Println("Handshake Success")
 	}

@@ -89,10 +89,9 @@ func initServer() *tls.Config {
 	}
 
 	cfg := &tls.Config{
-		MinVersion:       tls.VersionTLS10,
-		MaxVersion:       tls.VersionTLS13,
-		CurvePreferences: []tls.CurveID{tls.Kyber512, tls.SIKEp434},
-		KEMTLSEnabled:    true,
+		MinVersion:    tls.VersionTLS10,
+		MaxVersion:    tls.VersionTLS13,
+		KEMTLSEnabled: true,
 	}
 
 	// The root certificates for the peer.
@@ -128,8 +127,7 @@ func initClient() *tls.Config {
 		InsecureSkipVerify:         true, // Setting it to true due to the fact that it doesn't contain any IP SANs
 		SupportDelegatedCredential: true,
 
-		CurvePreferences: []tls.CurveID{tls.Kyber512, tls.SIKEp434},
-		KEMTLSEnabled:    true,
+		KEMTLSEnabled: true,
 	}
 
 	return ccfg
@@ -232,14 +230,6 @@ func main() {
 
 	ts, dc, kemtls, err := testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "client")
 
-	if err != nil {
-		log.Println(err)
-	} else if !dc && !kemtls {
-		log.Println("no dc")
-	} else {
-		log.Println("Success using kemtls with dc")
-	}
-
 	log.Printf("Write Client Hello %v \n", ts.clientTimingInfo.WriteClientHello)
 	log.Printf("Receive Client Hello %v \n", ts.serverTimingInfo.ProcessClientHello)
 	log.Printf("Write Server Hello %v \n", ts.serverTimingInfo.WriteServerHello)
@@ -259,4 +249,12 @@ func main() {
 	log.Printf("Receive Client Finished %v \n", ts.serverTimingInfo.ReadClientFinished)
 	log.Printf("Write Server Finished %v \n", ts.serverTimingInfo.WriteServerFinished)
 	log.Printf("Receive Server Finished %v \n", ts.clientTimingInfo.ReadServerFinished)
+
+	if err != nil {
+		log.Println(err)
+	} else if !dc && !kemtls {
+		log.Println("Failure while trying to use kemtls with dcs")
+	} else {
+		log.Println("Success using kemtls with dc")
+	}
 }
