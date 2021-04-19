@@ -9,11 +9,32 @@ import (
 	"time"
 )
 
-// These test keys were generated with the following program, available in the
+// These test cert and keys were generated with the following program, available in the
 // crypto/tls directory:
 //
+//	go run generate_cert.go -ecdsa-curve P256 -host 127.0.0.1 -ca
 //	go run generate_cert.go -ecdsa-curve P256 -host 127.0.0.1 -allowDC
 //
+var rootCertPEMP256 = `-----BEGIN CERTIFICATE-----
+MIIBijCCATGgAwIBAgIRALM63nKUutZeH12Fk/5tChgwCgYIKoZIzj0EAwIwEjEQ
+MA4GA1UEChMHQWNtZSBDbzAeFw0yMTA0MTkxMTAyMzhaFw0yMjA0MTkxMTAyMzha
+MBIxEDAOBgNVBAoTB0FjbWUgQ28wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAR4
+n0U8wpgVD81/HGgNbUW/8ZoLUT1nSUvZpntvzZ9nCLFWjf6X/zOO+Zpw9ci+Ob/H
+Db8ikQZ9GR1L8GStT7fjo2gwZjAOBgNVHQ8BAf8EBAMCAoQwEwYDVR0lBAwwCgYI
+KwYBBQUHAwEwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQU3bt5t8hhnxTne+C/
+lqWvK7ytdMAwDwYDVR0RBAgwBocEfwAAATAKBggqhkjOPQQDAgNHADBEAiAmR2b0
+Zf/yqBQWNjcb5BkEMXXB+HUYbUXWal0cQf8tswIgIN5sngQOABJiFfoJo6PCB2+V
+Uf8DiE3gx/2Z4bZugww=
+-----END CERTIFICATE-----
+`
+
+var rootKeyPEMP256 = `-----BEGIN EC PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQggzl0gcTDyAi7edv5
+1aPR0dlDog4XCJdftcdPCjI1xpmhRANCAAR4n0U8wpgVD81/HGgNbUW/8ZoLUT1n
+SUvZpntvzZ9nCLFWjf6X/zOO+Zpw9ci+Ob/HDb8ikQZ9GR1L8GStT7fj
+-----END EC PRIVATE KEY-----
+`
+
 var delegatorCertPEMP256 = `-----BEGIN CERTIFICATE-----
 MIIBgDCCASWgAwIBAgIRAKHVtdPqHtn9cjVHW94hM/gwCgYIKoZIzj0EAwIwEjEQ
 MA4GA1UEChMHQWNtZSBDbzAeFw0yMTAzMTYyMTEzNThaFw0yMjAzMTYyMTEzNTha
@@ -42,9 +63,21 @@ const (
 )
 
 func initServer() *tls.Config {
+	rootCertP256 := new(tls.Certificate)
 	// The delegation P256 certificate.
 	dcCertP256 := new(tls.Certificate)
 	var err error
+
+	*rootCertP256, err = tls.X509KeyPair([]byte(rootCertPEMP256), []byte(rootKeyPEMP256))
+	if err != nil {
+		panic(err)
+	}
+
+	rootCertP256.Leaf, err = x509.ParseCertificate(rootCertP256.Certificate[0])
+	if err != nil {
+		panic(err)
+	}
+
 	*dcCertP256, err = tls.X509KeyPair([]byte(delegatorCertPEMP256), []byte(delegatorKeyPEMP256))
 	if err != nil {
 		panic(err)
@@ -56,15 +89,14 @@ func initServer() *tls.Config {
 	}
 
 	cfg := &tls.Config{
-		MinVersion:         tls.VersionTLS10,
-		MaxVersion:         tls.VersionTLS13,
-		InsecureSkipVerify: true, // I'm JUST setting this for this test because the root and the leas are the same
+		MinVersion: tls.VersionTLS10,
+		MaxVersion: tls.VersionTLS13,
 	}
 
 	// The root certificates for the peer: this are invalid so DO NOT REUSE.
 	cfg.RootCAs = x509.NewCertPool()
 
-	dcRoot, err := x509.ParseCertificate(dcCertP256.Certificate[0])
+	dcRoot, err := x509.ParseCertificate(rootCertP256.Certificate[0])
 	if err != nil {
 		panic(err)
 	}
@@ -91,7 +123,7 @@ func initClient() *tls.Config {
 	ccfg := &tls.Config{
 		MinVersion:                 tls.VersionTLS10,
 		MaxVersion:                 tls.VersionTLS13,
-		InsecureSkipVerify:         true, // I'm JUST setting this for this test because the root and the leas are the same
+		InsecureSkipVerify:         true, // Setting it to true due to the fact that it doesn't contain any IP SANs
 		SupportDelegatedCredential: true,
 	}
 
