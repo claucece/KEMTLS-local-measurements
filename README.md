@@ -4,6 +4,7 @@ The scripts needed for KEMTLS local measurements.
 
 ## To build
 
+* Make sure you have `go 1.16` installed.
 * Clone the library with submodules:
   `git clone --recurse-submodules git@github.com:claucece/KEMTLS-local-measurements.git`
   (with ssh in this case).
