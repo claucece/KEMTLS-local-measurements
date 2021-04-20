@@ -257,9 +257,9 @@ func main() {
 		log.Println(color.Ize(color.Red, err.Error()))
 	} else if !dc && kemtls {
 		log.Println("")
-		log.Println(color.Ize(color.Red, "Failure while trying to use pqtls with dcs"))
+		log.Println(color.Ize(color.Red, "Failure while trying to use pqtls server auth with dcs"))
 	} else {
 		log.Println("")
-		log.Println(color.Ize(color.Green, "Success using pqtls with dc"))
+		log.Println(color.Ize(color.Green, "Success using pqtls (kem: kyber512, pqSig: eddilithum3) server auth with dc"))
 	}
 }
