@@ -7,6 +7,8 @@ import (
 	"log"
 	"net"
 	"time"
+
+	"github.com/TwinProduction/go-color"
 )
 
 // These test cert and keys were generated with the following program, available in the
@@ -251,10 +253,13 @@ func main() {
 	log.Printf("Receive Server Finished %v \n", ts.clientTimingInfo.ReadServerFinished)
 
 	if err != nil {
-		log.Println(err)
+		log.Println("")
+		log.Println(color.Ize(color.Red, err.Error()))
 	} else if !dc && kemtls {
-		log.Println("Failure while trying to use pqtls with dcs")
+		log.Println("")
+		log.Println(color.Ize(color.Red, "Failure while trying to use pqtls with dcs"))
 	} else {
-		log.Println("Success using pqtls with dc")
+		log.Println("")
+		log.Println(color.Ize(color.Green, "Success using pqtls with dc"))
 	}
 }
