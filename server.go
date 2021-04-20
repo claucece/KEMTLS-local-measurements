@@ -109,7 +109,7 @@ func initServer() *tls.Config {
 
 	maxTTL, _ := time.ParseDuration("24h")
 	validTime := maxTTL + time.Now().Sub(dcCertP256.Leaf.NotBefore)
-	dc, priv, err := tls.NewDelegatedCredential(dcCertP256, tls.Ed25519, validTime, false)
+	dc, priv, err := tls.NewDelegatedCredential(dcCertP256, tls.Ed448, validTime, false)
 	if err != nil {
 		panic(err)
 	}
@@ -255,6 +255,6 @@ func main() {
 		log.Println(color.Ize(color.Red, "Failure while trying to use tls 1.3 server auth with dcs"))
 	} else {
 		log.Println("")
-		log.Println(color.Ize(color.Green, "Success using tls 1.3 (ecdh, sig: ed25519) server auth with dc"))
+		log.Println(color.Ize(color.Green, "Success using tls 1.3 (ecdh, sig: ed448) server auth with dc"))
 	}
 }
