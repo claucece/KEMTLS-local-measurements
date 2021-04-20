@@ -4,6 +4,7 @@ The scripts needed for KEMTLS local measurements.
 
 ## To build
 
+* Install go-color: `go get -u github.com/TwinProduction/go-color`.
 * Build our own version of golang (provided as a submodule) by
   executing `make.bash` in the `go/src` folder.
 * To run vanilla tls 1.3 with DC for server authentication only,
