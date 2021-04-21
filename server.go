@@ -212,8 +212,10 @@ func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls
 	}
 
 	if peer == "client" {
-		if client.ConnectionState().VerifiedDC == true {
-			return timingState, true, nil
+		if client.ConnectionState().DidClientAuthentication == false {
+			if client.ConnectionState().VerifiedDC == true {
+				return timingState, true, nil
+			}
 		}
 	}
 
