@@ -169,7 +169,7 @@ func (ti *timingInfo) eventHandler(event tls.CFEvent) {
 	}
 }
 
-func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls.Config, peer string) (timingState timingInfo, dcUsed bool, kemtlsUsed bool, err error) {
+func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls.Config, peer string) (timingState timingInfo, dcUsed bool, pqtlsUsed bool, err error) {
 	clientConfig.CFEventHandler = timingState.eventHandler
 	serverConfig.CFEventHandler = timingState.eventHandler
 
@@ -224,7 +224,7 @@ func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls
 	}
 
 	if peer == "server" {
-		if server.ConnectionState().VerifiedDC == true && (server.ConnectionState().DidKEMTLS && client.ConnectionState().DidKEMTLS) {
+		if server.ConnectionState().VerifiedDC == true && (server.ConnectionState().DidPQTLS && client.ConnectionState().DidPQTLS) {
 			return timingState, true, true, nil
 		}
 	}
@@ -239,7 +239,7 @@ func main() {
 	serverConfig := initServer()
 	clientConfig := initClient()
 
-	ts, dc, kemtls, err := testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "server")
+	ts, dc, pqtls, err := testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "server")
 
 	log.Printf("Write Client Hello %v \n", ts.clientTimingInfo.WriteClientHello)
 	log.Printf("Receive Client Hello %v \n", ts.serverTimingInfo.ProcessClientHello)
@@ -264,7 +264,7 @@ func main() {
 	if err != nil {
 		log.Println("")
 		log.Println(color.Ize(color.Red, err.Error()))
-	} else if !dc && kemtls {
+	} else if !dc && !pqtls {
 		log.Println("")
 		log.Println(color.Ize(color.Red, "Failure while trying to use pqtls mutual auth with dcs"))
 	} else {
