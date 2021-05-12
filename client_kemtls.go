@@ -186,7 +186,7 @@ func (ti *timingInfo) eventHandler(event tls.CFEvent) {
 	}
 }
 
-func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls.Config, peer string) (timingState timingInfo, dcUsed bool, kemtlsUsed bool, err error) {
+func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls.Config, peer string) (timingState timingInfo, dcUsed bool, kemtlsUsed bool, cconnState, sconnState tls.ConnectionState, err error) {
 	clientConfig.CFEventHandler = timingState.eventHandler
 	serverConfig.CFEventHandler = timingState.eventHandler
 
@@ -213,13 +213,13 @@ func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls
 
 	client, err := tls.Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
-		return timingState, false, false, err
+		return timingState, false, false, cconnState, sconnState, err
 	}
 	defer client.Close()
 
 	server := <-serverCh
 	if server == nil {
-		return timingState, false, false, err
+		return timingState, false, false, cconnState, sconnState, err
 	}
 
 	bufLen := len(clientMsg)
@@ -231,22 +231,22 @@ func testConnWithDC(clientMsg, serverMsg string, clientConfig, serverConfig *tls
 	client.Write([]byte(clientMsg))
 	n, err := server.Read(buf)
 	if err != nil || n != len(clientMsg) || string(buf[:n]) != clientMsg {
-		return timingState, false, false, fmt.Errorf("Server read = %d, buf= %q; want %d, %s", n, buf, len(clientMsg), clientMsg)
+		return timingState, false, false, cconnState, sconnState, fmt.Errorf("Server read = %d, buf= %q; want %d, %s", n, buf, len(clientMsg), clientMsg)
 	}
 
 	server.Write([]byte(serverMsg))
 	n, err = client.Read(buf)
 	if n != len(serverMsg) || err != nil || string(buf[:n]) != serverMsg {
-		return timingState, false, false, fmt.Errorf("Client read = %d, %v, data %q; want %d, nil, %s", n, err, buf, len(serverMsg), serverMsg)
+		return timingState, false, false, cconnState, sconnState, fmt.Errorf("Client read = %d, %v, data %q; want %d, nil, %s", n, err, buf, len(serverMsg), serverMsg)
 	}
 
 	if peer == "server" {
 		if server.ConnectionState().VerifiedDC == true && (server.ConnectionState().DidKEMTLS && client.ConnectionState().DidKEMTLS) {
-			return timingState, true, true, nil
+			return timingState, true, true, server.ConnectionState(), client.ConnectionState(), nil
 		}
 	}
 
-	return timingState, false, false, nil
+	return timingState, false, false, cconnState, sconnState, nil
 }
 
 func main() {
@@ -256,7 +256,7 @@ func main() {
 	serverConfig := initServer()
 	clientConfig := initClient()
 
-	ts, dc, kemtls, err := testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "server")
+	ts, dc, kemtls, _, cconn, err := testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "server")
 
 	log.Printf("Write Client Hello %v \n", ts.clientTimingInfo.WriteClientHello)
 	log.Printf("Receive Client Hello %v \n", ts.serverTimingInfo.ProcessClientHello)
@@ -289,4 +289,31 @@ func main() {
 		log.Println(color.Ize(color.Green, "Success using kemtls (kem: sikep434, kemSig: sike434) mutual auth with dc"))
 	}
 
+	clientConfig.CachedCert = cconn.CertificateMessage
+	ts, dc, kemtls, _, _, err = testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "server")
+
+	log.Printf("Write Client Hello %v \n", ts.clientTimingInfo.WriteClientHello)
+	log.Printf("Receive Client Hello %v \n", ts.serverTimingInfo.ProcessClientHello)
+	log.Printf("Write Server Hello %v \n", ts.serverTimingInfo.WriteServerHello)
+	log.Printf("Write Server Encrypted Extensions %v \n", ts.serverTimingInfo.WriteEncryptedExtensions)
+	log.Printf("Write Server Certificate%v \n", ts.serverTimingInfo.WriteCertificate)
+	log.Printf("Write Server CertificateVerify %v \n", ts.serverTimingInfo.WriteCertificateVerify)
+	log.Printf("Write Server CertificateVerify %v \n", ts.serverTimingInfo.WriteCertificateVerify)
+	log.Printf("Write Client KEMCiphertext %v \n", ts.clientTimingInfo.WriteKEMCiphertext)
+	log.Printf("Read Client KEMCiphertext %v \n", ts.serverTimingInfo.ReadKEMCiphertext)
+	log.Printf("Write Client Certificate %v \n", ts.clientTimingInfo.WriteCertificate)
+	log.Printf("Write Client CertificateVerify %v \n", ts.clientTimingInfo.WriteCertificateVerify)
+	log.Printf("Receive Client Certificate %v \n", ts.serverTimingInfo.ReadCertificate)
+	log.Printf("Receive Client Certificate Verify %v \n", ts.serverTimingInfo.ReadCertificateVerify)
+	log.Printf("Write Server KEMCiphertext %v \n", ts.serverTimingInfo.WriteKEMCiphertext)
+	log.Printf("Read Server KEMCiphertext %v \n", ts.clientTimingInfo.ReadKEMCiphertext)
+	log.Printf("Write Client Finished %v \n", ts.clientTimingInfo.WriteClientFinished)
+	log.Printf("Receive Client Finished %v \n", ts.serverTimingInfo.ReadClientFinished)
+	log.Printf("Write Server Finished %v \n", ts.serverTimingInfo.WriteServerFinished)
+	log.Printf("Receive Server Finished %v \n", ts.clientTimingInfo.ReadServerFinished)
+
+	if err != nil {
+		log.Println("")
+		log.Println(color.Ize(color.Red, err.Error()))
+	}
 }

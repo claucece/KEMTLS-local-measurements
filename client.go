@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"time"
 
 	"github.com/TwinProduction/go-color"
@@ -123,6 +124,14 @@ func initClient() *tls.Config {
 	dcPair := tls.DelegatedCredentialPair{dc, priv}
 	cfg.Certificates[0].DelegatedCredentials = make([]tls.DelegatedCredentialPair, 1)
 	cfg.Certificates[0].DelegatedCredentials[0] = dcPair
+
+	if tlsKeyLogFile := os.Getenv("SSLKEYLOGFILE"); tlsKeyLogFile != "" {
+		kw, err := os.OpenFile(tlsKeyLogFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
+		if err != nil {
+			log.Printf("Cannot open key log file: %s\n", err)
+		}
+		cfg.KeyLogWriter = kw
+	}
 
 	return cfg
 }
