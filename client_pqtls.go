@@ -114,7 +114,7 @@ func initClient() *tls.Config {
 		InsecureSkipVerify:         true, // I'm JUST setting this for this test because the root and the leaf are the same
 		SupportDelegatedCredential: true,
 
-		CurvePreferences: []tls.CurveID{tls.SIKEp434, tls.Kyber512},
+		CurvePreferences: []tls.CurveID{tls.SIKEp434, tls.X25519},
 		PQTLSEnabled:     true,
 	}
 

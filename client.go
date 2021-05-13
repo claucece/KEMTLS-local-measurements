@@ -61,8 +61,9 @@ func initServer() *tls.Config {
 	cfg := &tls.Config{
 		MinVersion:                 tls.VersionTLS10,
 		MaxVersion:                 tls.VersionTLS13,
-		InsecureSkipVerify:         true,                  // I'm JUST setting this for this test because the root and the leas are the same
-		SupportDelegatedCredential: true,                  // for client auth, the server supports delegated credentials
+		InsecureSkipVerify:         true, // I'm JUST setting this for this test because the root and the leas are the same
+		SupportDelegatedCredential: true, // for client auth, the server supports delegated credentials
+		CurvePreferences:           []tls.CurveID{tls.X25519},
 		ClientAuth:                 tls.RequestClientCert, // for client auth
 	}
 
@@ -99,7 +100,8 @@ func initClient() *tls.Config {
 		MinVersion:                 tls.VersionTLS10,
 		MaxVersion:                 tls.VersionTLS13,
 		InsecureSkipVerify:         true, // I'm JUST setting this for this test because the root and the leaf are the same
-		SupportDelegatedCredential: false,
+		SupportDelegatedCredential: true,
+		CurvePreferences:           []tls.CurveID{tls.X25519},
 	}
 
 	// The root certificates for the peer: this are invalid so DO NOT REUSE.

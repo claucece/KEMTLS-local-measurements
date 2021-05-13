@@ -129,7 +129,8 @@ func initClient() *tls.Config {
 		InsecureSkipVerify:         true, // Setting it to true due to the fact that it doesn't contain any IP SANs
 		SupportDelegatedCredential: true,
 
-		PQTLSEnabled: true,
+		CurvePreferences: []tls.CurveID{tls.Kyber512, tls.X25519},
+		PQTLSEnabled:     true,
 	}
 
 	return ccfg
