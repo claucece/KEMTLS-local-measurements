@@ -64,7 +64,7 @@ func initServer() *tls.Config {
 		SupportDelegatedCredential: true,                  // for client auth, the server supports delegated credentials
 		ClientAuth:                 tls.RequestClientCert, // for client auth
 
-		CurvePreferences: []tls.CurveID{tls.SIKEp434, tls.Kyber512},
+		CurvePreferences: []tls.CurveID{tls.SIKEp434, tls.Kyber512, tls.X25519},
 		PQTLSEnabled:     true,
 	}
 
@@ -241,25 +241,30 @@ func main() {
 
 	ts, dc, pqtls, err := testConnWithDC(clientMsg, serverMsg, clientConfig, serverConfig, "server")
 
-	log.Printf("Write Client Hello %v \n", ts.clientTimingInfo.WriteClientHello)
-	log.Printf("Receive Client Hello %v \n", ts.serverTimingInfo.ProcessClientHello)
-	log.Printf("Write Server Hello %v \n", ts.serverTimingInfo.WriteServerHello)
-	log.Printf("Write Server Encrypted Extensions %v \n", ts.serverTimingInfo.WriteEncryptedExtensions)
-	log.Printf("Write Server Certificate%v \n", ts.serverTimingInfo.WriteCertificate)
-	log.Printf("Write Server CertificateVerify %v \n", ts.serverTimingInfo.WriteCertificateVerify)
-	log.Printf("Write Server CertificateVerify %v \n", ts.serverTimingInfo.WriteCertificateVerify)
-	log.Printf("Write Client KEMCiphertext %v \n", ts.clientTimingInfo.WriteKEMCiphertext)
-	log.Printf("Read Client KEMCiphertext %v \n", ts.serverTimingInfo.ReadKEMCiphertext)
-	log.Printf("Write Client Certificate %v \n", ts.clientTimingInfo.WriteCertificate)
-	log.Printf("Write Client CertificateVerify %v \n", ts.clientTimingInfo.WriteCertificateVerify)
-	log.Printf("Receive Client Certificate %v \n", ts.serverTimingInfo.ReadCertificate)
-	log.Printf("Receive Client Certificate Verify %v \n", ts.serverTimingInfo.ReadCertificateVerify)
-	log.Printf("Write Server KEMCiphertext %v \n", ts.serverTimingInfo.WriteKEMCiphertext)
-	log.Printf("Read Server KEMCiphertext %v \n", ts.clientTimingInfo.ReadKEMCiphertext)
-	log.Printf("Write Client Finished %v \n", ts.clientTimingInfo.WriteClientFinished)
-	log.Printf("Receive Client Finished %v \n", ts.serverTimingInfo.ReadClientFinished)
-	log.Printf("Write Server Finished %v \n", ts.serverTimingInfo.WriteServerFinished)
-	log.Printf("Receive Server Finished %v \n", ts.clientTimingInfo.ReadServerFinished)
+	fmt.Println("Client")
+	fmt.Printf("|--> Write Client Hello       %v \n", ts.clientTimingInfo.WriteClientHello)
+	fmt.Println("   Server")
+	fmt.Printf("   | Receive Client Hello     %v \n", ts.serverTimingInfo.ProcessClientHello)
+	fmt.Printf("   | Write Server Hello       %v \n", ts.serverTimingInfo.WriteServerHello)
+	fmt.Printf("   | Write Server Enc Exts    %v \n", ts.serverTimingInfo.WriteEncryptedExtensions)
+	fmt.Printf("   | Write Server Certificate %v \n", ts.serverTimingInfo.WriteCertificate)
+	fmt.Printf("<--| Write Server Cert Verify %v \n", ts.serverTimingInfo.WriteCertificateVerify)
+	fmt.Println("Client")
+	fmt.Printf("|    Process Server Hello       %v \n", ts.clientTimingInfo.ProcessServerHello)
+	fmt.Printf("|    Receive Server Enc Exts    %v \n", ts.clientTimingInfo.ReadEncryptedExtensions)
+	fmt.Printf("|    Receive Server Certificate %v \n", ts.clientTimingInfo.ReadCertificate)
+	fmt.Printf("|    Receive Server Cert Verify %v \n", ts.clientTimingInfo.ReadCertificateVerify)
+	fmt.Printf("|    Receive Server Finished    %v \n", ts.clientTimingInfo.ReadServerFinished)
+	fmt.Printf("|    Write Client Certificate   %v \n", ts.clientTimingInfo.WriteCertificate)
+	fmt.Printf("|    Write Client Cert Verify   %v \n", ts.clientTimingInfo.WriteCertificateVerify)
+	fmt.Printf("|--> Write Client Finished      %v \n", ts.clientTimingInfo.WriteClientFinished)
+	fmt.Println("   Server")
+	fmt.Printf("   | Receive Client Certificate %v \n", ts.serverTimingInfo.ReadCertificate)
+	fmt.Printf("   | Receive Client Cert Verify %v \n", ts.serverTimingInfo.ReadCertificateVerify)
+	fmt.Printf("   | Receive Client Finished    %v \n", ts.serverTimingInfo.ReadClientFinished)
+	fmt.Printf("<--| Write Server Finished      %v \n", ts.serverTimingInfo.WriteServerFinished)
+	fmt.Printf("Client Total time: %v \n", ts.clientTimingInfo.FullProtocol)
+	fmt.Printf("Server Total time: %v \n", ts.serverTimingInfo.FullProtocol)
 
 	if err != nil {
 		log.Println("")
