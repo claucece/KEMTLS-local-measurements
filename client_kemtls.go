@@ -8,8 +8,6 @@ import (
 	"net"
 	"os"
 	"time"
-
-	"github.com/TwinProduction/go-color"
 )
 
 // These test keys were generated with the following program, available in the
@@ -295,12 +293,12 @@ func main() {
 
 	if err != nil {
 		log.Println("")
-		log.Println(color.Ize(color.Red, err.Error()))
+		log.Println(err.Error())
 	} else if !dc && !kemtls {
 		log.Println("")
-		log.Println(color.Ize(color.Red, "Failure while trying to use kemtls mutual auth with dcs"))
+		log.Println("Failure while trying to use kemtls mutual auth with dcs")
 	} else {
 		log.Println("")
-		log.Println(color.Ize(color.Green, "Success using kemtls (kem: sikep434, kemSig: sike434) mutual auth with dc"))
+		log.Println("Success using kemtls (kem: sikep434, kemSig: sike434) mutual auth with dc")
 	}
 }

@@ -7,8 +7,6 @@ import (
 	"log"
 	"net"
 	"time"
-
-	"github.com/TwinProduction/go-color"
 )
 
 // These test keys were generated with the following program, available in the
@@ -268,12 +266,12 @@ func main() {
 
 	if err != nil {
 		log.Println("")
-		log.Println(color.Ize(color.Red, err.Error()))
+		log.Println(err.Error())
 	} else if !dc && !pqtls {
 		log.Println("")
-		log.Println(color.Ize(color.Red, "Failure while trying to use pqtls mutual auth with dcs"))
+		log.Println("Failure while trying to use pqtls mutual auth with dcs")
 	} else {
 		log.Println("")
-		log.Println(color.Ize(color.Green, "Success using pqtls (kem: sikep434, pqSig: eddilithum3) mutual auth with dc"))
+		log.Println("Success using pqtls (kem: sikep434, pqSig: eddilithum3) mutual auth with dc")
 	}
 }

@@ -7,8 +7,6 @@ import (
 	"log"
 	"net"
 	"time"
-
-	"github.com/TwinProduction/go-color"
 )
 
 // These test cert and keys were generated with the following program, available in the
@@ -258,12 +256,12 @@ func main() {
 
 	if err != nil {
 		log.Println("")
-		log.Println(color.Ize(color.Red, err.Error()))
+		log.Println(err.Error())
 	} else if !dc {
 		log.Println("")
-		log.Println(color.Ize(color.Red, "Failure while trying to use tls 1.3 server auth with dcs"))
+		log.Println("Failure while trying to use tls 1.3 server auth with dcs")
 	} else {
 		log.Println("")
-		log.Println(color.Ize(color.Green, "Success using tls 1.3 (ecdh, sig: ed448) server auth with dc"))
+		log.Println("Success using tls 1.3 (ecdh, sig: ed448) server auth with dc")
 	}
 }
